@@ -75,6 +75,17 @@ class Rejuvenator:
             # hot data
             pass
 
+    def _write_without_gc(self, d, lb, lp):
+        """
+        same as write but without gc
+
+        :param d: data
+        :param lb: logical block address
+        :param lp: logical page number
+        :return:
+        """
+        pass
+
     def gc(self):
         """
         perform garbage collection to ensure there is at least one clean block
@@ -83,11 +94,20 @@ class Rejuvenator:
         idx, b = self._find_vb()
         page = 0
 
+        """         
+         loop invariant 0 <= page <= self.n_page
+         loop invariant \forall int j; 0 <= j < i ==> self.page_info[b][page] == 'c' || self.page_info[b][page] == 'i'
+         loop assigns page, self.page_info[b][0 .. self.n_page -1]
+         loop variant self.n_page - page  
+         
+          
+         loop assigns self.h_act_block_p, self.h_act_page_p
+         loop assigns self.l_act_block_p, self.l_act_page_p
+        """
         while page != self.n_page:
             if not self.page_info[b][page] in ['c', 'i']:  # move valid page
                 lb, lp = self.page_info[b][page]
-
-                # TODO write with gc
+                self._write_without_gc(self._r(b, page), lb, lp)
 
             self.page_info[b][page] = 'c'  # set to a clean page
             page += 1
@@ -101,6 +121,15 @@ class Rejuvenator:
         :param d: data
         :param pb: physical block
         :param pg: physical page
+        :return:
+        """
+        pass
+
+    def _r(self, pb, pg):
+        """
+        read from physical block address and page number
+        :param pb: physical block address
+        :param pg: physical page number
         :return:
         """
         pass
