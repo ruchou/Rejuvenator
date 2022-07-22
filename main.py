@@ -3,35 +3,41 @@ class Rejuvenator:
     Rejuvenator prototype
     """
 
-    def __init__(self, n_phy_blocks=150, n_log_blocks=100, m=10, n_page=100, lru_size=100):
+    def __init__(self, n_phy_blocks=150, n_log_blocks=100, m=10, n_page=100, lru_size=100, delta= 20):
         """
         Initialize the Rejuvenator
 
         :param n_phy_blocks: number of physical blocks
         :param n_log_blocks: number of logical blocks
         :param m: parameter for m value
+        :param n_page: number of pages per block
+        :param lru_size: lru size by page
         """
         self.m = m
         self.n_page = n_page  # number of pages in a block
         self.n_log_blocks = n_log_blocks  # number of logical block
         self.n_phy_blocks = n_phy_blocks  # number of physical block
         self.clean = [True] * self.n_phy_blocks  # clean bit for physical block
-        self.index = [-1] * self.n_phy_blocks  # write count index for each physical block
-        self.write_count_index = [0] * self.n_phy_blocks  # write count
+        # TODO more examples
+        self.index_2_physical = [i for i in range(n_phy_blocks)]  # erase count for physical block [0 ... n_phy_block-1]
+        self.erase_count_index = [-1] * self.n_phy_blocks  # erase count separator
+        self.erase_count_index[0] = n_phy_blocks - 1
 
-        self.h_act_block_p = 0  # high active block pointer
-        self.h_act_page_p = 0  # high active page pointer
-        self.l_act_block_p = -1  # low active block pointer
-        self.l_act_page_p = -1  # lowe active page pointer
+        self.h_act_block_p = 0  # high active block pointer based on index_2_physical
+        self.h_act_page_p = 0  # high active page pointer ..
+        self.l_act_block_p = 0  # low active block pointer ..
+        self.l_act_page_p = 0  # low active page pointer ..
 
         self.l_to_p = [-1] * self.n_log_blocks  # logical to physical block mapping
         self.page_info = [['c'] * n_page for _ in
                           range(n_phy_blocks)]  # page information it can be "i":invalid, "c": clean, or int:
         # logical address
-        self.l_clean_counter = m - self.l_act_block_p  # number of clean blocks in the lower number list
-        self.h_clean_count = self.h_act_page_p - m  # number of clean blocks in the higher number list
+        self.l_clean_counter = self.n_phy_blocks  # number of clean blocks in the lower number list
+        self.h_clean_counter = self.n_phy_blocks  # number of clean blocks in the higher number list
 
         self.LRU = [None] * lru_size  # LRU
+
+        self.delta = delta  # delta value
 
     def write(self, d, lb, lp):
         """
@@ -40,39 +46,59 @@ class Rejuvenator:
         :param lb: logical block
         :param lp: logical page
         :return:
+
+        precondition
+            requires l_clean_counter > 0 && h_clean_counter > 0
+        post-condition
         """
-        # check the logical data is hot or cold
-        if (lb, lp) in self.LRU:
+        # check the logical address is hot or cold
+        if (lb, lp) not in self.LRU:
             # cold data
             # see if the block is in the high number list or lower number list
-            if self._is_high_n_list_l(lb):
-                self._w(d, self.h_act_block_p, self.h_act_page_p)  # write data
-                self.page_info[self.h_act_block_p][self.h_act_page_p] = (lb, lp)
+            # if self._is_high_n_list(self.l_to_p[lb]):
+            self._w(d, self.h_act_block_p, self.h_act_page_p)  # write data
+            self._update_lru(lb,lp)
 
-                # update high number page pointer
-                if self.h_act_page_p + 1 == self.n_page:
-                    # page + 1 == block size
-                    # move the high pointer to the next clean block
-                    self.h_act_page_p = 0
-                    self.h_act_block_p += 1
+            if self.l_to_p[(lb,lp)] != -1:
+                pb, pp = self.l_to_p[(lb,lp)]
+                self.page_info[pb][pp] = 'i'
 
-                    while not self.clean[self.h_act_block_p] or not self._is_high_n_list_p(self.h_act_block_p):
-                        self.h_act_block_p += 1
+            self.page_info[self.h_act_block_p][self.h_act_page_p] = (lb, lp)
 
-                    # TODO clean count checking
-                    if self.h_clean_count < 1:  # if there is no clean block then GC
-                        self.gc()
-                    else:
-                        return
+            # update active high page pointer
+            if self.h_act_page_p + 1 == self.n_page:
+                # page + 1 == block size
+                # move the high pointer to the next clean block
+                self.h_act_page_p = 0
 
-                else:
-                    # page + 1 < block size
-                    self.h_act_page_p += 1
+                while not self.clean[self.h_act_block_p]:
+                    # TODO find next block in the high number list
+
+                    if self.h_act_block_p > self.n_phy_blocks-1:
+                        # reset to beginning of the first block in minwear + m
+                        pass
+
+                self.h_clean_counter -= 1
+                self.clean[self.h_act_block_p] = False
+
+                if self.h_clean_counter < 1:  # if there is no clean block then GC
+                    self.gc()  # TODO might not yield the clean block in the high number list
+                    if self.h_clean_counter < 1:
+                        self.h_act_block_p = self.l_act_block_p
+                        self.h_act_page_p = self.l_act_page_p
+                        self.h_clean_counter = self.l_clean_counter
 
             else:
-                pass
+                # page + 1 < block size
+                self.h_act_page_p += 1
+
+            # else:
+            #     # similarly
+            #     pass
         else:
+            # similarly
             # hot data
+
             pass
 
     def _write_without_gc(self, d, lb, lp):
@@ -123,6 +149,9 @@ class Rejuvenator:
         :param pg: physical page
         :return:
         """
+
+
+
         pass
 
     def _r(self, pb, pg):
@@ -141,12 +170,14 @@ class Rejuvenator:
         """
         return 1, 1
 
-    def _is_high_n_list_p(self, pb):
+    def _is_high_n_list(self, pb):
         pass
 
-    def _is_high_n_list_l(self, lb):
+    def _get_physical_address_by_block(self, id):
         pass
 
+    def _update_lru(self,lb,lp):
+        pass
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
