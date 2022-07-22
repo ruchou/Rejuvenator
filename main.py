@@ -3,7 +3,7 @@ class Rejuvenator:
     Rejuvenator prototype
     """
 
-    def __init__(self, n_phy_blocks=150, n_log_blocks=100, m=10, n_page=100, lru_size=100, delta= 20):
+    def __init__(self, n_phy_blocks=150, n_log_blocks=100, m=10, n_page=100, lru_size=100, tau=20):
         """
         Initialize the Rejuvenator
 
@@ -28,16 +28,19 @@ class Rejuvenator:
         self.l_act_block_p = 0  # low active block pointer ..
         self.l_act_page_p = 0  # low active page pointer ..
 
-        self.l_to_p = [-1] * self.n_log_blocks  # logical to physical block mapping
-        self.page_info = [['c'] * n_page for _ in
-                          range(n_phy_blocks)]  # page information it can be "i":invalid, "c": clean, or int:
-        # logical address
+        self.l_to_p = [[-1] * n_page for _ in range(n_log_blocks)]  # logical to physical block mapping
+        self.phy_page_info = [['c'] * n_page for _ in range(n_phy_blocks)]  # page information it can be "i":invalid,
+        # "c": clean, or int:
+        # logical address (lb,lp)
         self.l_clean_counter = self.n_phy_blocks  # number of clean blocks in the lower number list
         self.h_clean_counter = self.n_phy_blocks  # number of clean blocks in the higher number list
 
         self.LRU = [None] * lru_size  # LRU
 
-        self.delta = delta  # delta value
+        self.tau = tau  # delta value
+
+        self.min_wear = 0
+        self.max_wear = 200
 
     def write(self, d, lb, lp):
         """
@@ -57,13 +60,13 @@ class Rejuvenator:
             # see if the block is in the high number list or lower number list
             # if self._is_high_n_list(self.l_to_p[lb]):
             self._w(d, self.h_act_block_p, self.h_act_page_p)  # write data
-            self._update_lru(lb,lp)
+            self._update_lru(lb, lp)
 
-            if self.l_to_p[(lb,lp)] != -1:
-                pb, pp = self.l_to_p[(lb,lp)]
-                self.page_info[pb][pp] = 'i'
+            if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
+                pb, pp = self.l_to_p[lb][lp]
+                self.phy_page_info[pb][pp] = 'i'
 
-            self.page_info[self.h_act_block_p][self.h_act_page_p] = (lb, lp)
+            self.phy_page_info[self.h_act_block_p][self.h_act_page_p] = (lb, lp)
 
             # update active high page pointer
             if self.h_act_page_p + 1 == self.n_page:
@@ -71,22 +74,18 @@ class Rejuvenator:
                 # move the high pointer to the next clean block
                 self.h_act_page_p = 0
 
-                while not self.clean[self.h_act_block_p]:
-                    # TODO find next block in the high number list
+                # search a clean block from the head of the high number list
 
-                    if self.h_act_block_p > self.n_phy_blocks-1:
-                        # reset to beginning of the first block in minwear + m
-                        pass
+                self.h_act_block_p = self._get_head(erase_count=self.min_wear+self.m)
+
+                while self.h_act_block_p != len(self.index_2_physical) and self.clean[self._index_2_physical(self.h_act_block_p)]:
+                    self.h_act_block_p += 1
 
                 self.h_clean_counter -= 1
                 self.clean[self.h_act_block_p] = False
 
                 if self.h_clean_counter < 1:  # if there is no clean block then GC
-                    self.gc()  # TODO might not yield the clean block in the high number list
-                    if self.h_clean_counter < 1:
-                        self.h_act_block_p = self.l_act_block_p
-                        self.h_act_page_p = self.l_act_page_p
-                        self.h_clean_counter = self.l_clean_counter
+                    self.gc()
 
             else:
                 # page + 1 < block size
@@ -131,11 +130,11 @@ class Rejuvenator:
          loop assigns self.l_act_block_p, self.l_act_page_p
         """
         while page != self.n_page:
-            if not self.page_info[b][page] in ['c', 'i']:  # move valid page
-                lb, lp = self.page_info[b][page]
+            if not self.phy_page_info[b][page] in ['c', 'i']:  # move valid page
+                lb, lp = self.phy_page_info[b][page]
                 self._write_without_gc(self._r(b, page), lb, lp)
 
-            self.page_info[b][page] = 'c'  # set to a clean page
+            self.phy_page_info[b][page] = 'c'  # set to a clean page
             page += 1
 
     def data_migration(self):
@@ -149,8 +148,6 @@ class Rejuvenator:
         :param pg: physical page
         :return:
         """
-
-
 
         pass
 
@@ -170,14 +167,14 @@ class Rejuvenator:
         """
         return 1, 1
 
-    def _is_high_n_list(self, pb):
+    def _update_lru(self, lb, lp):
         pass
 
-    def _get_physical_address_by_block(self, id):
-        pass
+    def _get_head(self,erase_count=0):
+        return 0
 
-    def _update_lru(self,lb,lp):
-        pass
+    def _index_2_physical(self,idx=0):
+        return self.index_2_physical[idx]
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
