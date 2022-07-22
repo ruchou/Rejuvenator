@@ -67,7 +67,8 @@ class Rejuvenator:
                 self.phy_page_info[pb][pp] = 'i'
 
             self.phy_page_info[self.h_act_block_p][self.h_act_page_p] = (lb, lp)
-
+            self.l_to_p[lb][lp] = (self.h_act_page_p,self.h_act_page_p)
+            
             # update active high page pointer
             if self.h_act_page_p + 1 == self.n_page:
                 # page + 1 == block size
@@ -184,4 +185,5 @@ class Rejuvenator:
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     r = Rejuvenator()
+    r.write(d="a",lb=0,lp=1)
     r.gc()
