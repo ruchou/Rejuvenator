@@ -137,6 +137,11 @@ class Rejuvenator:
             self.phy_page_info[b][page] = 'c'  # set to a clean page
             page += 1
 
+        # check lower number list
+
+        # check higher number list
+
+
     def data_migration(self):
         pass
 
