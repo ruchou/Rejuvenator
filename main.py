@@ -57,18 +57,17 @@ class Rejuvenator:
         # check the logical address is hot or cold
         if (lb, lp) not in self.LRU:
             # cold data
-            # see if the block is in the high number list or lower number list
-            # if self._is_high_n_list(self.l_to_p[lb]):
-            self._w(d, self.h_act_block_p, self.h_act_page_p)  # write data
+            pb,pp = self._index_2_physical()
+            self._w(d, pb, pp)  # write data
             self._update_lru(lb, lp)
 
             if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
                 pb, pp = self.l_to_p[lb][lp]
                 self.phy_page_info[pb][pp] = 'i'
 
-            self.phy_page_info[self.h_act_block_p][self.h_act_page_p] = (lb, lp)
-            self.l_to_p[lb][lp] = (self.h_act_page_p,self.h_act_page_p)
-            
+            #  update the physical to logical mapping
+            self.l_to_p[lb][lp] = pb, pp
+
             # update active high page pointer
             if self.h_act_page_p + 1 == self.n_page:
                 # page + 1 == block size
@@ -180,6 +179,7 @@ class Rejuvenator:
         return 0
 
     def _index_2_physical(self,idx=0):
+        # TODO erase count logical to physical mappping?
         return self.index_2_physical[idx]
 
 # Press the green button in the gutter to run the script.
