@@ -215,6 +215,7 @@ class Rejuvenator:
             loop assigns self.h_act_block_p, self.h_act_page_p
             loop assigns self.l_act_block_p, self.l_act_page_p
         """
+        # move all pages in the block
         while pp != self.n_page:
             if not self.phy_page_info[pb][pp] in ['c', 'i']:  # move valid page
                 lb, lp = self.phy_page_info[pb][pp]
@@ -222,6 +223,25 @@ class Rejuvenator:
 
             self.phy_page_info[pb][pp] = 'c'  # set to a clean page
             pp += 1
+
+        # erase the block
+        self._erase_block(pb=pb)
+
+        # special case for high number block index
+        if self.h_act_block_index_p == -1:  # initially it is -1 but some block whose erase count will be over
+            # min_wear+m 
+            idx = self.index_2_physical.index(pb)
+            if self._get_erase_count_by_idx(idx) >= self.min_wear + m:
+                self.h_act_block_index_p = idx
+                self.h_clean_counter = 1
+
+    def _erase_block(self, pb):
+        """
+            erase block and update index_2_physical & erase_count_index
+        :param pb:
+        :return:
+        """
+        pass
 
     def _get_most_clean_efficient_block_idx(self):
         most_clean_idx, n_of_max_invalid_page = 0, 0
