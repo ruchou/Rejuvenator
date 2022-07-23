@@ -188,7 +188,7 @@ class Rejuvenator:
         pass
 
     def _get_head_idx(self, erase_count=0):
-        return 0
+        return sum(self.erase_count_index[:erase_count])
 
     def _clean_block_data(self, pb):
 
@@ -212,25 +212,33 @@ class Rejuvenator:
             page += 1
 
     def _get_most_clean_efficient_block_idx(self):
-        return 0
+        most_clean_idx, n_of_max_invalid_page = 0, 0
+
+        for idx in range(len(self.index_2_physical)):
+            pd = self.index_2_physical[idx]
+            n_of_invalid_page = 0
+
+            for page in self.phy_page_info[pd]:
+                if page == "i":
+                    n_of_invalid_page += 1
+
+            if n_of_invalid_page >= n_of_max_invalid_page:
+                n_of_max_invalid_page = n_of_invalid_page
+                most_clean_idx = idx
+
+        return most_clean_idx
 
     def _get_erase_count_by_idx(self, idx):  # TODO fix it
-        erase_count = 0
-
-        for e in self.erase_count_index:
-            if erase_count + e > idx:
+        cur = 0
+        for erase_count in range(len(self.erase_count_index)):
+            if cur + self.erase_count_index[erase_count] > idx:
                 return erase_count
             else:
-                erase_count += 1
+                cur = cur + self.erase_count_index[erase_count]
 
-        return erase_count
+        return len(self.erase_count_index)
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     r = Rejuvenator()
-    r.index_2_physical = [1, 5, 7, 3, 2]
-    r.erase_count_index = [2, 2, 1]
-
-    for i in range(len(r.index_2_physical)):
-        print(r._get_erase_count_by_idx(i))
