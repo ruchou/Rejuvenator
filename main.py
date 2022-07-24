@@ -86,40 +86,68 @@ class Rejuvenator:
         # check the logical address is hot or cold
         if (lb, lp) not in self.LRU:
             # cold data
-            # if self.h_act_block_index_p != -1:
-
-            pb, pp = self.index_2_physical[self.h_act_block_index_p], self.h_act_page_p
-            self._w(d, pb, pp)  # write data
-            self._update_lru(lb, lp)
-
-            #  update logical to physical mapping
-            if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
-                pb, pp = self.l_to_p[lb][lp]
-                self.phy_page_info[pb][pp] = 'i'
-
-            self.l_to_p[lb][lp] = pb, pp
-
-            # update active pointer value
-            if self.h_act_page_p + 1 == self.n_page:
-                # page + 1 == block size
-                # move the high pointer to the next clean block
-                # search a clean block from the head of the high number list
-                self.h_act_block_index_p = self.n_phy_blocks // 2
-
-                while not self.clean[self.index_2_physical[self.h_act_block_index_p]]:
-                    self.h_act_block_index_p += 1
-
-                self.h_clean_counter -= 1
-                self.clean[self.index_2_physical[self.h_act_block_index_p]] = False
-
-            else:
-                # page + 1 < block size
-                self.h_act_page_p += 1
+            self._write_2_higher_number_list(d, lb, lp)
         else:
-            # similarly write it the lower number list
+            # hot data
             if self.l_act_block_index_p == -1:
-                # write to higher number list
-                pass
+                # if there is no clean block in the lower number list, write to the higher number list
+                self._write_2_higher_number_list(d, lb, lp)
+            else:  # write to the lower number list
+                self._write_2_lower_number_list(d, lb, lp)
+
+    def _write_2_higher_number_list(self, d, lb, lp):
+        pb, pp = self.index_2_physical[self.h_act_block_index_p], self.h_act_page_p
+        self._w(d, pb, pp)  # write data
+        self._update_lru(lb, lp)
+
+        #  update logical to physical mapping
+        if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
+            pb, pp = self.l_to_p[lb][lp]
+            self.phy_page_info[pb][pp] = 'i'
+        self.l_to_p[lb][lp] = pb, pp
+
+        # update active pointer value
+        if self.h_act_page_p + 1 == self.n_page:
+            # page + 1 == block size
+            # move the high pointer to the next clean block
+            # search a clean block from the head of the high number list
+            self.h_act_block_index_p = self.n_phy_blocks // 2
+
+            while not self.clean[self.index_2_physical[self.h_act_block_index_p]]:
+                self.h_act_block_index_p += 1
+
+            self.h_clean_counter -= 1
+            self.clean[self.index_2_physical[self.h_act_block_index_p]] = False
+        else:
+            # page + 1 < block size
+            self.h_act_page_p += 1
+
+    def _write_2_lower_number_list(self, d, lb, lp):
+        pb, pp = self.index_2_physical[self.l_act_block_index_p], self.l_act_page_p
+        self._w(d, pb, pp)  # write data
+        self._update_lru(lb, lp)
+
+        #  update logical to physical mapping
+        if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
+            pb, pp = self.l_to_p[lb][lp]
+            self.phy_page_info[pb][pp] = 'i'
+        self.l_to_p[lb][lp] = pb, pp
+
+        # update active pointer value
+        if self.l_act_page_p + 1 == self.n_page:
+            # page + 1 == block size
+            # move the high pointer to the next clean block
+            # search a clean block from the head of the high number list
+            self.l_act_block_index_p = 0
+
+            while not self.clean[self.index_2_physical[self.l_act_block_index_p]]:
+                self.l_act_block_index_p += 1
+
+            self.l_clean_counter -= 1
+            self.clean[self.index_2_physical[self.l_act_block_index_p]] = False
+        else:
+            # page + 1 < block size
+            self.l_act_page_p += 1
 
     def gc(self):
         """
@@ -286,11 +314,17 @@ class Rejuvenator:
         self._erase_block(pb=pb)
         # update erase count for pb
         self._increase_erase_count(idx)
-        # TODO swap
-        # TODO active pointer remember the update idx
 
     def _increase_erase_count(self, idx):
-        pass
+        # swap the index_2_physical[idx] with the element which has teh same erase count
+        erase_count = self._get_erase_count_by_idx(idx=idx)
+        last_block_idx = self._get_head_idx(erase_count=erase_count + 1)
+        self.index_2_physical[idx], self.index_2_physical[last_block_idx] = self.index_2_physical[last_block_idx], \
+                                                                            self.index_2_physical[idx]
+
+        # update the erase_count index
+        self.erase_count_index[erase_count] -= 1
+        self.erase_count_index[erase_count + 1] += 1
 
     def _erase_block(self, pb):
         """
