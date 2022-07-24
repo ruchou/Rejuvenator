@@ -3,8 +3,7 @@ class Rejuvenator:
     Rejuvenator prototype
     """
 
-    def __init__(self, n_phy_blocks=150, n_log_blocks=100, m=10, n_page=100, lru_size=100, tau=20, min_wear=0,
-                 max_wear=100):
+    def __init__(self, n_phy_blocks=150, n_log_blocks=100, m=10, n_page=100, lru_size=100, tau=20):
         """
         Initialize the Rejuvenator
 
@@ -52,8 +51,6 @@ class Rejuvenator:
 
         self.tau = tau  # tau value
         self.m = m
-        self.min_wear = min_wear
-        self.max_wear = max_wear
 
     def write(self, d, lb, lp):
         """
@@ -88,7 +85,7 @@ class Rejuvenator:
                     # move the high pointer to the next clean block
                     # search a clean block from the head of the high number list
                     self.h_act_page_p = 0
-                    self.h_act_block_index_p = self._get_head_idx(erase_count=self.min_wear + self.m)
+                    self.h_act_block_index_p = self._get_head_idx(erase_count=self.min_wear() + self.m)
                     while not self.clean[self.index_2_physical[self.h_act_block_index_p]]:
                         self.h_act_block_index_p += 1
 
@@ -128,31 +125,31 @@ class Rejuvenator:
         :return:
         """
         v_idx, v_pb = self._find_vb(erase_count_start=0, erase_count_end=self.n_phy_blocks - 1)
-        self._clean_block_data(pb=v_pb)
+        self._erase_block_data(pb=v_pb)
 
         # check lower number list
         if self.l_clean_counter < 1:
-            l_vic_idx, l_vic_pb = self._find_vb(erase_count_start=self.min_wear,
-                                                erase_count_end=self.min_wear + self.m
+            l_vic_idx, l_vic_pb = self._find_vb(erase_count_start=self.min_wear(),
+                                                erase_count_end=self.min_wear() + self.m
                                                 )
-            self._clean_block_data(pb=l_vic_pb)
+            self._erase_block_data(pb=l_vic_pb)
 
         elif self.h_clean_counter < 1:
             # check higher number list
-            h_vic_idx, h_vic_pb = self._find_vb(erase_count_start=self.min_wear + self.m,
-                                                erase_count_end=self.max_wear + 1
+            h_vic_idx, h_vic_pb = self._find_vb(erase_count_start=self.min_wear() + self.m,
+                                                erase_count_end=self.max_wear() + 1
                                                 )
-            self._clean_block_data(pb=h_vic_pb)
+            self._erase_block_data(pb=h_vic_pb)
 
     def data_migration(self):
         idx = self._get_most_clean_efficient_block_idx()
-        if self.min_wear <= self._get_erase_count_by_idx(idx) < self.min_wear + self.tau:
-            idx = self._get_head_idx(erase_count=self.min_wear)
-            end_idx = self._get_head_idx(erase_count=self.min_wear + 1)
+        if self.min_wear() <= self._get_erase_count_by_idx(idx) < self.min_wear() + self.tau:
+            idx = self._get_head_idx(erase_count=self.min_wear())
+            end_idx = self._get_head_idx(erase_count=self.min_wear() + 1)
 
             while idx < end_idx:
                 pb = self.index_2_physical[idx]
-                self._clean_block_data(pb=pb)
+                self._erase_block_data(pb=pb)
                 idx += 1
 
     def _w(self, d, pb, pg):
@@ -174,6 +171,12 @@ class Rejuvenator:
         :return:
         """
         pass
+
+    def min_wear(self):
+        return 0
+
+    def max_wear(self):
+        return 10000
 
     def _find_vb(self, erase_count_start, erase_count_end):
         """
@@ -202,7 +205,7 @@ class Rejuvenator:
     def _get_head_idx(self, erase_count=0):
         return sum(self.erase_count_index[:erase_count])
 
-    def _clean_block_data(self, pb):
+    def _erase_block_data(self, pb):
 
         pp = 0
         """         
@@ -229,9 +232,9 @@ class Rejuvenator:
 
         # special case for high number block index
         if self.h_act_block_index_p == -1:  # initially it is -1 but some block whose erase count will be over
-            # min_wear+m 
+            # min_wear+m
             idx = self.index_2_physical.index(pb)
-            if self._get_erase_count_by_idx(idx) >= self.min_wear + m:
+            if self._get_erase_count_by_idx(idx) >= self.min_wear() + self.m:
                 self.h_act_block_index_p = idx
                 self.h_clean_counter = 1
 
