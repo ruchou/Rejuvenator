@@ -34,12 +34,10 @@ class Rejuvenator:
                                             
             erase_count_index: [0,0,0,3,3,5] means a[0:3] have erase count 3
                                                    a[3:5] have erase count 5
-                                                           
             FYI a[x:y] means a[x],a[x+1]....a[y-1]
         """
         self.index_2_physical = [i for i in range(n_phy_blocks)]  # erase count for physical block [0 ... n_phy_block-1]
-        self.erase_count_index = [0] * self.n_phy_blocks  # erase count separator
-        self.erase_count_index[0] = n_phy_blocks
+        self.erase_count_index = [n_phy_blocks] * self.n_phy_blocks  # erase count separator
 
         self.h_act_block_index_p = n_phy_blocks // 2  # high active block pointer based on index_2_physical
         self.h_act_page_p = 0  # high active page pointer for physical page
@@ -65,8 +63,9 @@ class Rejuvenator:
         :param lp: logical page
         :return:
 
-        invariant: h_clean_counter > 1
+        invariant: h_clean_counter >= 1
         """
+        self._update_lru(lb, lp)
         self._write_helper(d=d, lb=lb, lp=lp)
         if self.h_clean_counter < 1:  # if there is no clean block then GC
             self.gc()
@@ -95,7 +94,7 @@ class Rejuvenator:
     def _write_2_higher_number_list(self, d, lb, lp):
         pb, pp = self.index_2_physical[self.h_act_block_index_p], self.h_act_page_p
         self._w(d, pb, pp)  # write data
-        self._update_lru(lb, lp)
+        # self._update_lru(lb, lp)
 
         #  update logical to physical mapping
         if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
@@ -115,6 +114,7 @@ class Rejuvenator:
 
             self.h_clean_counter -= 1
             self.clean[self.index_2_physical[self.h_act_block_index_p]] = False
+            self.h_act_page_p = 0
         else:
             # page + 1 < block size
             self.h_act_page_p += 1
@@ -122,7 +122,7 @@ class Rejuvenator:
     def _write_2_lower_number_list(self, d, lb, lp):
         pb, pp = self.index_2_physical[self.l_act_block_index_p], self.l_act_page_p
         self._w(d, pb, pp)  # write data
-        self._update_lru(lb, lp)
+        # self._update_lru(lb, lp)
 
         #  update logical to physical mapping
         if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
@@ -142,6 +142,7 @@ class Rejuvenator:
 
             self.l_clean_counter -= 1
             self.clean[self.index_2_physical[self.l_act_block_index_p]] = False
+            self.l_act_page_p = 0
         else:
             # page + 1 < block size
             self.l_act_page_p += 1
@@ -153,18 +154,17 @@ class Rejuvenator:
         """
 
         # check lower number list
-        if self.l_clean_counter < 1:
-            l_vic_idx, l_vic_pb = self._find_vb(start_idx=0,
-                                                end_idx=self.n_phy_blocks // 2
-                                                )
-            self._erase_block_data(idx=l_vic_idx)
-
-        elif self.h_clean_counter < 1:
+        if self.h_clean_counter < 1:
             # check higher number list
             h_vic_idx, h_vic_pb = self._find_vb(start_idx=self.n_phy_blocks // 2,
                                                 end_idx=self.n_phy_blocks
                                                 )
             self._erase_block_data(idx=h_vic_idx)
+        elif self.l_clean_counter < 1:
+            l_vic_idx, l_vic_pb = self._find_vb(start_idx=0,
+                                                end_idx=self.n_phy_blocks // 2
+                                                )
+            self._erase_block_data(idx=l_vic_idx)
         else:
             v_idx, v_pb = self._find_vb(start_idx=0,
                                         end_idx=self.n_phy_blocks
@@ -175,7 +175,7 @@ class Rejuvenator:
         """
         Data Migration
         """
-        idx = self._find_vb(start_idx=0, end_idx=self.n_phy_blocks)
+        idx = self._get_most_clean_efficient_block_idx()
         if self.min_wear() + self.tau <= self._get_erase_count_by_idx(idx):
             idx = self.erase_count_index[self.min_wear() - 1]
             end_idx = self.erase_count_index[self.min_wear()]
@@ -302,16 +302,16 @@ class Rejuvenator:
     def _increase_erase_count(self, idx):
         # swap the index_2_physical[idx] with the element which has teh same erase count
         erase_count = self._get_erase_count_by_idx(idx=idx)
-        last_block_idx = self._get_head_idx(erase_count=erase_count + 1)
+        last_block_idx = self._get_head_idx(erase_count=erase_count + 1) - 1
         self.index_2_physical[idx], self.index_2_physical[last_block_idx] = self.index_2_physical[last_block_idx], \
                                                                             self.index_2_physical[idx]
 
         # update the erase_count index
         self.erase_count_index[erase_count] -= 1
-        self.erase_count_index[erase_count + 1] += 1
 
+        idx = last_block_idx
         # update clean counter
-        if erase_count < self.n_phy_blocks // 2:
+        if idx < self.n_phy_blocks // 2:
             self.l_clean_counter += 1
         else:
             self.h_clean_counter += 1
@@ -324,26 +324,26 @@ class Rejuvenator:
         """
         pass
 
-    # def _get_most_clean_efficient_block_idx(self):
-    #     """
-    #     Get the most clean efficient block idx
-    #     :return: index of the physical block
-    #     """
-    #     most_clean_idx, n_of_max_invalid_page = 0, 0
-    #
-    #     for idx in range(len(self.index_2_physical)):
-    #         pd = self.index_2_physical[idx]
-    #         n_of_invalid_page = 0
-    #
-    #         for page in self.phy_page_info[pd]:
-    #             if page == "i":
-    #                 n_of_invalid_page += 1
-    #
-    #         if n_of_invalid_page >= n_of_max_invalid_page:
-    #             n_of_max_invalid_page = n_of_invalid_page
-    #             most_clean_idx = idx
-    #
-    #     return most_clean_idx
+    def _get_most_clean_efficient_block_idx(self):
+        """
+        Get the most clean efficient block idx
+        :return: index of the physical block
+        """
+        most_clean_idx, n_of_max_invalid_page = 0, 0
+
+        for idx in range(len(self.index_2_physical)):
+            pd = self.index_2_physical[idx]
+            n_of_invalid_page = 0
+
+            for page in self.phy_page_info[pd]:
+                if page == "i":
+                    n_of_invalid_page += 1
+
+            if n_of_invalid_page >= n_of_max_invalid_page:
+                n_of_max_invalid_page = n_of_invalid_page
+                most_clean_idx = idx
+
+        return most_clean_idx
 
     def _get_erase_count_by_idx(self, idx):
         """
