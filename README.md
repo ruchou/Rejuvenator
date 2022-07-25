@@ -16,4 +16,12 @@ pip install -r requirements.txt
 
     add python file with the name tes_*.py
     add test function with the name test_*()
+    
+    -testDir: all unit tests for rejuvenator
+        -test.sample.py : sample test code
+        -test_datamigration.py: test for data_migration()
+        -test_gc.py: test for gc()
+        -test_write.py: test for write()
+        -test_unit.py: test for helper function
+    
 

@@ -2,7 +2,10 @@ import pytest
 from main import Rejuvenator
 
 
-class TestRejuvenator:
+class TestUnit:
+    """
+    Test helper functions in Rejuvenator
+    """
     @classmethod
     def setup_class(self):
         print("set up class")
@@ -25,10 +28,9 @@ class TestRejuvenator:
         print("tear down the method")
         self.r = None
 
+    # TODO add more unit tests to test all helper functions
+    # example
     def test_one(self):
-        self.r.clean[0] = False
+        self.r.write(d=10, lb=1, lp=5)
 
-        assert self.r.clean[0] == False
-
-    def test_two(self):
-        assert self.r.clean[0] == True
+        assert self.r.n_page == 100
