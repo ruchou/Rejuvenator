@@ -12,3 +12,8 @@ Dependency
 pip install -r requirements.txt
 ```
 
+### Add Test Cases
+
+    add python file with the name tes_*.py
+    add test function with the name test_*()
+
