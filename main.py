@@ -247,13 +247,10 @@ class Rejuvenator:
                 continue
 
             # ignore the block with all clean pages
-            if all([True if page == "c" else False for page in self.phy_page_info[pd]]
-                   ):
+            if self.phy_page_info[pd].count("c") == self.n_page:
                 continue
 
-            n_of_invalid_or_clean_page = sum([1 if page == "i" or page == "c" else 0
-                                              for page in self.phy_page_info[pd]]
-                                             )
+            n_of_invalid_or_clean_page = self.phy_page_info[pd].count("i") + self.phy_page_info[pd].count("c")
 
             if n_of_invalid_or_clean_page >= n_of_max_invalid_or_clean_page:
                 vic_idx = idx
@@ -340,13 +337,10 @@ class Rejuvenator:
                 continue
 
             # ignore the block with all clean pages
-            if all([True if page == "c" else False for page in self.phy_page_info[pd]]
-                   ):
+            if self.phy_page_info[pd].count("c") == self.n_page:
                 continue
 
-            n_of_invalid_or_clean_page = sum([1 if page == "c" or page == "i" else 0
-                                              for page in self.phy_page_info[pd]])
-
+            n_of_invalid_or_clean_page = self.phy_page_info[pd].count("i") + self.phy_page_info[pd].count("c")
 
             if n_of_invalid_or_clean_page >= n_of_max_invalid_or_clean_page:
                 n_of_max_invalid_or_clean_page = n_of_invalid_or_clean_page
