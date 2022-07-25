@@ -329,18 +329,27 @@ class Rejuvenator:
         Get the most clean efficient block idx
         :return: index of the physical block
         """
-        most_clean_idx, n_of_max_invalid_page = 0, 0
+        most_clean_idx, n_of_max_invalid_or_clean_page = 0, 0
 
         for idx in range(len(self.index_2_physical)):
             pd = self.index_2_physical[idx]
-            n_of_invalid_page = 0
+            n_of_invalid_or_clean_page = 0
 
-            for page in self.phy_page_info[pd]:
-                if page == "i":
-                    n_of_invalid_page += 1
+            # ignore the block indexed by either active pointer
+            if idx == self.h_act_block_index_p or idx == self.l_act_block_index_p:
+                continue
 
-            if n_of_invalid_page >= n_of_max_invalid_page:
-                n_of_max_invalid_page = n_of_invalid_page
+            # ignore the block with all clean pages
+            if all([True if page == "c" else False for page in self.phy_page_info[pd]]
+                   ):
+                continue
+
+            n_of_invalid_or_clean_page = sum([1 if page == "c" or page == "i" else 0
+                                              for page in self.phy_page_info[pd]])
+
+
+            if n_of_invalid_or_clean_page >= n_of_max_invalid_or_clean_page:
+                n_of_max_invalid_or_clean_page = n_of_invalid_or_clean_page
                 most_clean_idx = idx
 
         return most_clean_idx
