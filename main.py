@@ -52,7 +52,7 @@ class Rejuvenator:
         self.l_clean_counter = self.n_phy_blocks // 2  # number of clean blocks in the lower number list
         self.h_clean_counter = self.n_phy_blocks - self.l_clean_counter  # number of clean blocks in the higher
         # number list
-        self.LRU = [None] * lru_size  # LRU
+        self.LRU = [(None, None)] * lru_size  # LRU
         self.tau = tau  # tau value
 
     def write(self, d, lb, lp):
@@ -266,7 +266,42 @@ class Rejuvenator:
         :param lp: logical page address
         :return:
         """
-        pass
+        if (lb, lp) not in self.LRU:
+            # cache does not exist
+            # check size
+            cur = 0
+            while cur < len(self.LRU):
+                if self.LRU[cur] == (None, None):
+                    break
+                cur += 1
+
+            if cur == len(self.LRU):
+                # remove first element
+                self.LRU = self.LRU[1:] + [(lb, lp)]
+            else:
+                self.LRU[cur] = (lb, lp)
+
+            # not enough
+            pass
+        else:
+            # (lb,lp) exists
+            # remove (lb,lp)
+            cur = 0
+            while cur < len(self.LRU):
+                if self.LRU[cur] == (lb, lp):
+                    tmp = cur + 1
+                    while tmp < len(self.LRU):
+                        self.LRU[cur] = self.LRU[tmp]
+                        cur += 1
+                        tmp += 1
+                    self.LRU[tmp] = (None, None)
+            # insert (lb,lp)
+            cur = 0
+            while cur < len(self.LRU):
+                if not self.LRU[cur]:
+                    self.LRU[cur] = (lb, lp)
+                cur += 1
+            pass
 
     def _get_head_idx(self, erase_count=0):
         """
