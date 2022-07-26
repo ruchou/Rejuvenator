@@ -224,7 +224,7 @@ class Rejuvenator:
         """
 
         for i in range(len(self.erase_count_index)):
-            if self.erase_count_index[i] == self.n_phy_blocks - 1:
+            if self.erase_count_index[i] == self.n_phy_blocks:
                 return i
 
     def _find_vb(self, start_idx, end_idx):
