@@ -52,7 +52,7 @@ class Rejuvenator:
         self.l_clean_counter = self.n_phy_blocks // 2  # number of clean blocks in the lower number list
         self.h_clean_counter = self.n_phy_blocks - self.l_clean_counter  # number of clean blocks in the higher
         # number list
-        self.LRU = [None] * lru_size  # LRU
+        self.LRU = [(None, None)] * lru_size  # LRU
         self.tau = tau  # tau value
 
     def write(self, d, lb, lp):
@@ -271,12 +271,13 @@ class Rejuvenator:
             # check size
             cur = 0
             while cur < len(self.LRU):
-                if not self.LRU[cur]:
+                if self.LRU[cur] == (None, None):
                     break
                 cur += 1
+
             if cur == len(self.LRU):
                 # remove first element
-                self.LRU = self.LRU[1:] + [None]
+                self.LRU = self.LRU[1:] + [(lb, lp)]
             else:
                 self.LRU[cur] = (lb, lp)
 
@@ -293,7 +294,7 @@ class Rejuvenator:
                         self.LRU[cur] = self.LRU[tmp]
                         cur += 1
                         tmp += 1
-                    self.LRU[tmp] = None
+                    self.LRU[tmp] = (None, None)
             # insert (lb,lp)
             cur = 0
             while cur < len(self.LRU):
