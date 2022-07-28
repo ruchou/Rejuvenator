@@ -338,7 +338,7 @@ class Rejuvenator:
     def _increase_erase_count(self, idx):
         # swap the index_2_physical[idx] with the element which has teh same erase count
         erase_count = self._get_erase_count_by_idx(idx=idx)
-        last_block_idx = self._get_head_idx(erase_count=erase_count + 1) - 1
+        last_block_idx = self.erase_count_index[erase_count] - 1
         self.index_2_physical[idx], self.index_2_physical[last_block_idx] = self.index_2_physical[last_block_idx], \
                                                                             self.index_2_physical[idx]
 

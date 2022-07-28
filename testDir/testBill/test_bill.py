@@ -87,3 +87,56 @@ class TestBillUnit:
         assert self.r._get_head_idx(erase_count=1) == -1
         assert self.r._get_head_idx(erase_count=2) == -1
 
+    def test_get_erase_count_by_idx(self):
+        self.r.n_phy_blocks = 5
+        self.r.index_2_physical = [1, 2, 3, 4, 5]
+        self.r.erase_count_index = [3, 4, 5]
+
+        assert self.r._get_erase_count_by_idx(0) == 0
+        assert self.r._get_erase_count_by_idx(1) == 0
+        assert self.r._get_erase_count_by_idx(2) == 0
+        assert self.r._get_erase_count_by_idx(3) == 1
+        assert self.r._get_erase_count_by_idx(4) == 2
+
+    def test_get_erase_count_by_idx_2(self):
+        self.r.n_phy_blocks = 5
+        self.r.index_2_physical = [1, 2, 3, 4, 5]
+        self.r.erase_count_index = [0, 0, 5]
+
+        assert self.r._get_erase_count_by_idx(0) == 2
+        assert self.r._get_erase_count_by_idx(1) == 2
+        assert self.r._get_erase_count_by_idx(2) == 2
+        assert self.r._get_erase_count_by_idx(3) == 2
+        assert self.r._get_erase_count_by_idx(4) == 2
+
+    def test_get_erase_count_by_idx_3(self):
+        self.r.n_phy_blocks = 5
+        self.r.index_2_physical = [1, 2, 3, 4, 5]
+        self.r.erase_count_index = [5, 5, 5]
+
+        assert self.r._get_erase_count_by_idx(0) == 0
+        assert self.r._get_erase_count_by_idx(1) == 0
+        assert self.r._get_erase_count_by_idx(2) == 0
+        assert self.r._get_erase_count_by_idx(3) == 0
+        assert self.r._get_erase_count_by_idx(4) == 0
+
+    def test_increase_erase_count(self):
+        self.r.n_phy_blocks = 5
+        self.r.index_2_physical = [1, 2, 3, 4, 5]
+        self.r.erase_count_index = [3, 4, 5]
+
+        self.r._increase_erase_count(idx=0)
+
+        assert self.r.index_2_physical == [3, 2, 1, 4, 5]
+        assert self.r.erase_count_index == [2, 4, 5]
+
+    def test_increase_erase_count_2(self):
+        self.r.n_phy_blocks = 5
+        self.r.index_2_physical = [1, 2, 3, 4, 5]
+        self.r.erase_count_index = [0, 0, 5, 5]
+
+        self.r._increase_erase_count(idx=2)
+
+        assert self.r.index_2_physical == [1, 2, 5, 4, 3]
+        assert self.r.erase_count_index == [0, 0, 4, 5]
+
