@@ -309,10 +309,14 @@ class Rejuvenator:
         :param erase_count: erase count
         :return: the head index in the index_2_physical
         """
-        if erase_count != 0:
+        if erase_count == 0:
             return 0
         else:
-            return self.erase_count_index[erase_count - 1]
+            if self.erase_count_index[erase_count - 1] >= self.erase_count_index[erase_count]:
+                # no such head
+                return -1
+            else:
+                return self.erase_count_index[erase_count - 1]
 
     def _erase_block_data(self, idx):
         pb = self.index_2_physical[idx]
