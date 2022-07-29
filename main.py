@@ -3,7 +3,14 @@ class Rejuvenator:
     Rejuvenator prototype
     """
 
-    def __init__(self, n_phy_blocks=150, n_log_blocks=100, n_page=100, lru_size=100, tau=20):
+    def __init__(self,
+                 n_phy_blocks=150,
+                 n_log_blocks=100,
+                 n_page=100,
+                 lru_size=100,
+                 tau=20,
+                 max_wear_count=10_000_000
+                 ):
         """
         Initialize the Rejuvenator
 
@@ -28,16 +35,16 @@ class Rejuvenator:
                                              a[2:4] have erase count 1
                                              a[4:5] have erase count 2
             erase count 0: index_2_physical[0,erase_count_index[0])
-                        1: index_2_physical[erase_count_index[0],erase_count_index[1])
-                        2: index_2_physical[erase_count_index[1],erase_count_index[2])
-                        i: index_2_physical[erase_count_index[i-1],erase_count_index[i])
+                        1: index_2_physical[erase_count_index[0]:erase_count_index[1])
+                        2: index_2_physical[erase_count_index[1]:erase_count_index[2])
+                        i: index_2_physical[erase_count_index[i-1]:erase_count_index[i])
                                             
             erase_count_index: [0,0,0,3,3,5] means a[0:3] have erase count 3
                                                    a[3:5] have erase count 5
             FYI a[x:y] means a[x],a[x+1]....a[y-1]
         """
         self.index_2_physical = [i for i in range(n_phy_blocks)]  # erase count for physical block [0 ... n_phy_block-1]
-        self.erase_count_index = [n_phy_blocks] * self.n_phy_blocks  # erase count separator
+        self.erase_count_index = [n_phy_blocks] * max_wear_count  # erase count separator
 
         self.h_act_block_index_p = n_phy_blocks // 2  # high active block pointer based on index_2_physical
         self.h_act_page_p = 0  # high active page pointer for physical page
