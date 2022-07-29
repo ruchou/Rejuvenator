@@ -65,8 +65,8 @@ class Rejuvenator:
 
         invariant: h_clean_counter >= 1
         """
-        self._update_lru(lb, lp)
         self._write_helper(d=d, lb=lb, lp=lp)
+        self._update_lru(lb, lp)
         if self.h_clean_counter < 1:  # if there is no clean block then GC
             self.gc()
 
@@ -295,13 +295,14 @@ class Rejuvenator:
                         cur += 1
                         tmp += 1
                     self.LRU[tmp] = (None, None)
+                else:
+                    cur += 1
             # insert (lb,lp)
             cur = 0
             while cur < len(self.LRU):
                 if not self.LRU[cur]:
                     self.LRU[cur] = (lb, lp)
                 cur += 1
-            pass
 
     def _get_head_idx(self, erase_count=0):
         """
