@@ -62,6 +62,8 @@ class Rejuvenator:
         self.LRU = [(None, None)] * lru_size  # LRU
         self.tau = tau  # tau value
 
+        self.max_wear_count = max_wear_count
+
     def write(self, d, lb, lp):
         """
         write the data d based on the logical address (lb,lp)
@@ -405,7 +407,7 @@ class Rejuvenator:
         :return: erase count
         """
 
-        for cur in range(self.n_phy_blocks):
+        for cur in range(self.max_wear_count):
             if self.erase_count_index[cur] > idx:
                 return cur
         return self.n_phy_blocks
