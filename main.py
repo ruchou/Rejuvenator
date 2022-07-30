@@ -114,14 +114,16 @@ class Rejuvenator:
             # page + 1 == block size
             # move the high pointer to the next clean block
             # search a clean block from the head of the high number list
-            self.h_act_block_index_p = self.n_phy_blocks // 2
-
-            while not self.clean[self.index_2_physical[self.h_act_block_index_p]]:
-                self.h_act_block_index_p += 1
-
             self.h_clean_counter -= 1
             self.clean[self.index_2_physical[self.h_act_block_index_p]] = False
             self.h_act_page_p = 0
+
+            self.h_act_block_index_p = self.n_phy_blocks // 2
+            while not self.clean[
+                self.index_2_physical[self.h_act_block_index_p]] and self.h_act_block_index_p < self.n_phy_blocks:
+                self.h_act_block_index_p += 1
+
+
         else:
             # page + 1 < block size
             self.h_act_page_p += 1
@@ -142,14 +144,15 @@ class Rejuvenator:
             # page + 1 == block size
             # move the high pointer to the next clean block
             # search a clean block from the head of the high number list
-            self.l_act_block_index_p = 0
-
-            while not self.clean[self.index_2_physical[self.l_act_block_index_p]]:
-                self.l_act_block_index_p += 1
-
             self.l_clean_counter -= 1
             self.clean[self.index_2_physical[self.l_act_block_index_p]] = False
             self.l_act_page_p = 0
+
+            self.l_act_block_index_p = 0
+            while not self.clean[
+                self.index_2_physical[self.l_act_block_index_p]] and self.l_act_block_index_p < self.n_phy_blocks // 2:
+                self.l_act_block_index_p += 1
+
         else:
             # page + 1 < block size
             self.l_act_page_p += 1
