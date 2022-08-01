@@ -53,7 +53,7 @@ class Rejuvenator:
 
         self.l_to_p = [[-1] * n_page for _ in range(n_log_blocks)]  # logical to physical block mapping
         # [lb][lp] -> [pb][pp]
-        self.phy_page_info = [['c'] * n_page for _ in range(n_phy_blocks)]  # page information it can be "i":invalid,
+        # self.phy_page_info = [['c'] * n_page for _ in range(n_phy_blocks)]  # page information it can be "i":invalid,
         # "c": clean, or int: logical address (lb,lp)
 
         self.l_clean_counter = self.n_phy_blocks // 2  # number of clean blocks in the lower number list
@@ -61,6 +61,8 @@ class Rejuvenator:
         # number list
         self.LRU = [(None, None)] * lru_size  # LRU
         self.tau = tau  # tau value
+
+        self.max_wear_count = max_wear_count
 
     def write(self, d, lb, lp):
         """
@@ -106,7 +108,8 @@ class Rejuvenator:
         #  update logical to physical mapping
         if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
             pb, pp = self.l_to_p[lb][lp]
-            self.phy_page_info[pb][pp] = 'i'
+            self.write_space_area(pb=pb, pp=pp, is_valid=False)
+            # self.phy_page_info[pb][pp] = 'i'
         self.l_to_p[lb][lp] = pb, pp
 
         # update active pointer value
@@ -123,7 +126,6 @@ class Rejuvenator:
                 self.index_2_physical[self.h_act_block_index_p]] and self.h_act_block_index_p < self.n_phy_blocks:
                 self.h_act_block_index_p += 1
 
-
         else:
             # page + 1 < block size
             self.h_act_page_p += 1
@@ -136,7 +138,8 @@ class Rejuvenator:
         #  update logical to physical mapping
         if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
             pb, pp = self.l_to_p[lb][lp]
-            self.phy_page_info[pb][pp] = 'i'
+            self.write_space_area(pb=pb, pp=pp, is_valid=False)
+            # self.phy_page_info[pb][pp] = 'i'
         self.l_to_p[lb][lp] = pb, pp
 
         # update active pointer value
@@ -221,11 +224,11 @@ class Rejuvenator:
         Get the min_wear value
         :return: min_wear value
         """
-        for i in range(len(self.erase_count_index)):
+        for i in range(self.max_wear_count):
             if self.erase_count_index[i] != 0:
                 return i
 
-        return self.n_phy_blocks
+        return self.max_wear_count
 
     def max_wear(self):
         """
@@ -233,7 +236,7 @@ class Rejuvenator:
         :return: max_wear value
         """
 
-        for i in range(len(self.erase_count_index)):
+        for i in range(self.max_wear_count):
             if self.erase_count_index[i] == self.n_phy_blocks:
                 return i
 
@@ -259,6 +262,23 @@ class Rejuvenator:
                 continue
 
             # ignore the block with all clean pages
+            n_of_clean_page = 0
+            n_of_invalid_page = 0
+
+            for page in range(self.n_page):
+                pb = self.index_2_physical[idx]
+                is_valid = self.read_space_area(pb=pb, pp=page)
+                if is_valid:
+                    if idx == self.l_act_block_index_p:
+                        pass
+                    elif idx == self.h_act_block_index_p:
+                        pass
+                    else:
+                        pass
+                else:
+                    n_of_invalid_page += 1
+
+
             if self.phy_page_info[pd].count("c") == self.n_page:
                 idx += 1
                 continue
@@ -351,7 +371,6 @@ class Rejuvenator:
         # update erase count for pb
         self._increase_erase_count(idx)
 
-
     def _increase_erase_count(self, idx):
         # swap the index_2_physical[idx] with the element which has teh same erase count
         erase_count = self._get_erase_count_by_idx(idx=idx)
@@ -415,6 +434,26 @@ class Rejuvenator:
             if self.erase_count_index[cur] > idx:
                 return cur
         return self.n_phy_blocks
+
+    def read_space_area(self, pb, pp):
+        """
+        DISK API
+        read physical page info from the space area
+        :param pb: physical block address
+        :param pp: physical page address
+        :return is_valid: valid or invalid
+        """
+
+        return True
+
+    def write_space_area(self, pb, pp, is_valid=True):
+        """
+            DISK API
+            write physical page info from the space area
+            :param pb: physical block address
+            :param pp: physical page address
+            :return is_valid: valid or invalid
+        """
 
 
 # Press the green button in the gutter to run the script.

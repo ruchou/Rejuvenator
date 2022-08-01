@@ -20,7 +20,7 @@ class TestBillUnit:
         class.  setup_method is invoked for every test method of a class.
         """
         print("set up the method")
-        self.r = Rejuvenator(n_phy_blocks=20, n_log_blocks=10, n_page=10, lru_size=5, tau=10)
+        self.r = Rejuvenator(n_phy_blocks=20, n_log_blocks=10, n_page=10, lru_size=5, tau=10,max_wear_count=20)
 
     def teardown_method(self, method):
         """teardown any state that was previously setup with a setup_method
