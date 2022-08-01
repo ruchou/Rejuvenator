@@ -247,14 +247,17 @@ class Rejuvenator:
 
             # ignore the block within the min_wear + tau
             if self._get_erase_count_by_idx(idx) >= self.min_wear() + self.tau:
+                idx += 1
                 continue
 
             # ignore the block indexed by either active pointer
             if idx == self.h_act_block_index_p or idx == self.l_act_block_index_p:
+                idx += 1
                 continue
 
             # ignore the block with all clean pages
             if self.phy_page_info[pd].count("c") == self.n_page:
+                idx += 1
                 continue
 
             n_of_invalid_or_clean_page = self.phy_page_info[pd].count("i") + self.phy_page_info[pd].count("c")
@@ -340,8 +343,11 @@ class Rejuvenator:
 
         # erase the block by disk erase API
         self._erase_block(pb=pb)
+        # update clean block
+        self.clean[pb] = True
         # update erase count for pb
         self._increase_erase_count(idx)
+
 
     def _increase_erase_count(self, idx):
         # swap the index_2_physical[idx] with the element which has teh same erase count
