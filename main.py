@@ -53,14 +53,16 @@ class Rejuvenator:
 
         self.l_to_p = [[-1] * n_page for _ in range(n_log_blocks)]  # logical to physical block mapping
         # [lb][lp] -> [pb][pp]
-        self.phy_page_info = [['c'] * n_page for _ in range(n_phy_blocks)]  # page information it can be "i":invalid,
-        # "c": clean, or int: logical address (lb,lp)
+        self.phy_page_info = [[True] * n_page for _ in
+                              range(n_phy_blocks)]  # physical page info True: valid,False invalid
 
         self.l_clean_counter = self.n_phy_blocks // 2  # number of clean blocks in the lower number list
         self.h_clean_counter = self.n_phy_blocks - self.l_clean_counter  # number of clean blocks in the higher
         # number list
         self.LRU = [(None, None)] * lru_size  # LRU
         self.tau = tau  # tau value
+
+        self.max_wear_count = max_wear_count
 
     def write(self, d, lb, lp):
         """
@@ -106,7 +108,7 @@ class Rejuvenator:
         #  update logical to physical mapping
         if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
             pb, pp = self.l_to_p[lb][lp]
-            self.phy_page_info[pb][pp] = 'i'
+            self.phy_page_info[pb][pp] = False
         self.l_to_p[lb][lp] = pb, pp
 
         # update active pointer value
@@ -123,7 +125,6 @@ class Rejuvenator:
                 self.index_2_physical[self.h_act_block_index_p]] and self.h_act_block_index_p < self.n_phy_blocks:
                 self.h_act_block_index_p += 1
 
-
         else:
             # page + 1 < block size
             self.h_act_page_p += 1
@@ -136,7 +137,7 @@ class Rejuvenator:
         #  update logical to physical mapping
         if self.l_to_p[lb][lp] != -1:  # clean previous physical address from the same logical address
             pb, pp = self.l_to_p[lb][lp]
-            self.phy_page_info[pb][pp] = 'i'
+            self.phy_page_info[pb][pp] = False
         self.l_to_p[lb][lp] = pb, pp
 
         # update active pointer value
@@ -187,7 +188,10 @@ class Rejuvenator:
         """
         idx = self._get_most_clean_efficient_block_idx()
         if self.min_wear() + self.tau <= self._get_erase_count_by_idx(idx):
-            idx = self.erase_count_index[self.min_wear() - 1]
+            if self.min_wear() == 0:
+                idx = self.erase_count_index[0]
+            else:
+                idx = self.erase_count_index[self.min_wear() - 1]
             end_idx = self.erase_count_index[self.min_wear()]
 
             while idx < end_idx:
@@ -221,11 +225,11 @@ class Rejuvenator:
         Get the min_wear value
         :return: min_wear value
         """
-        for i in range(len(self.erase_count_index)):
+        for i in range(self.max_wear_count):
             if self.erase_count_index[i] != 0:
                 return i
 
-        return self.n_phy_blocks
+        return self.max_wear_count
 
     def max_wear(self):
         """
@@ -233,41 +237,9 @@ class Rejuvenator:
         :return: max_wear value
         """
 
-        for i in range(len(self.erase_count_index)):
+        for i in range(self.max_wear_count):
             if self.erase_count_index[i] == self.n_phy_blocks:
                 return i
-
-    def _find_vb(self, start_idx, end_idx):
-        """
-        find a victim block from [erase_count_start, erase_count_end)
-        :return idx,B
-        """
-        idx = start_idx
-        vic_idx, n_of_max_invalid_or_clean_page = idx, 0
-
-        while idx != end_idx:
-            pd = self.index_2_physical[idx]
-
-            # ignore the block within the min_wear + tau
-            if self._get_erase_count_by_idx(idx) >= self.min_wear() + self.tau:
-                continue
-
-            # ignore the block indexed by either active pointer
-            if idx == self.h_act_block_index_p or idx == self.l_act_block_index_p:
-                continue
-
-            # ignore the block with all clean pages
-            if self.phy_page_info[pd].count("c") == self.n_page:
-                continue
-
-            n_of_invalid_or_clean_page = self.phy_page_info[pd].count("i") + self.phy_page_info[pd].count("c")
-
-            if n_of_invalid_or_clean_page >= n_of_max_invalid_or_clean_page:
-                vic_idx = idx
-                n_of_max_invalid_or_clean_page = n_of_invalid_or_clean_page
-            idx += 1
-
-        return vic_idx, self.index_2_physical[vic_idx]
 
     def _update_lru(self, lb, lp):
         """
@@ -334,15 +306,19 @@ class Rejuvenator:
         pp = 0
         # move all pages in the block
         while pp != self.n_page:
-            if not self.phy_page_info[pb][pp] in ['c', 'i']:  # move valid page
-                lb, lp = self.phy_page_info[pb][pp]
+
+            if self.phy_page_info[pb][pp]:
+                lb, lp = self.read_spare_area(pb=pb, pp=pp)
                 self._write_helper(self._r(pb, pp), lb, lp)
 
-            self.phy_page_info[pb][pp] = 'c'  # set to a clean page
+            self.phy_page_info[pb][pp] = False  # invalidate the page
+
             pp += 1
 
         # erase the block by disk erase API
         self._erase_block(pb=pb)
+        # update clean block
+        self.clean[pb] = True
         # update erase count for pb
         self._increase_erase_count(idx)
 
@@ -371,6 +347,42 @@ class Rejuvenator:
         """
         pass
 
+    def _find_vb(self, start_idx, end_idx):
+        """
+        find a victim block from [erase_count_start, erase_count_end)
+        :return idx,B
+        """
+        idx = start_idx
+        vic_idx, n_of_max_invalid_or_clean_page = idx, 0
+
+        while idx != end_idx:
+            pb = self.index_2_physical[idx]
+
+            # ignore the block within the min_wear + tau
+            if self._get_erase_count_by_idx(idx) >= self.min_wear() + self.tau:
+                idx += 1
+                continue
+
+            # ignore the block indexed by either active pointer
+            if idx == self.h_act_block_index_p or idx == self.l_act_block_index_p:
+                idx += 1
+                continue
+
+            # ignore the block with all clean pages
+            if self.phy_page_info[pb].count(False) == self.n_page and \
+                    all(self.read_spare_area(pb=pb, pp=page) is None for page in range(self.n_page)):
+                idx += 1
+                continue
+
+            n_of_invalid_or_clean_page = self.phy_page_info[pb].count(False)
+
+            if n_of_invalid_or_clean_page >= n_of_max_invalid_or_clean_page:
+                vic_idx = idx
+                n_of_max_invalid_or_clean_page = n_of_invalid_or_clean_page
+            idx += 1
+
+        return vic_idx, self.index_2_physical[vic_idx]
+
     def _get_most_clean_efficient_block_idx(self):
         """
         Get the most clean efficient block idx
@@ -379,7 +391,7 @@ class Rejuvenator:
         most_clean_idx, n_of_max_invalid_or_clean_page = 0, 0
 
         for idx in range(len(self.index_2_physical)):
-            pd = self.index_2_physical[idx]
+            pb = self.index_2_physical[idx]
             n_of_invalid_or_clean_page = 0
 
             # ignore the block indexed by either active pointer
@@ -387,10 +399,11 @@ class Rejuvenator:
                 continue
 
             # ignore the block with all clean pages
-            if self.phy_page_info[pd].count("c") == self.n_page:
+            if self.phy_page_info[pb].count(False) == self.n_page and \
+                    all(self.read_spare_area(pb=pb, pp=page) is None for page in range(self.n_page)):
                 continue
 
-            n_of_invalid_or_clean_page = self.phy_page_info[pd].count("i") + self.phy_page_info[pd].count("c")
+            n_of_invalid_or_clean_page = self.phy_page_info[pb].count(False)
 
             if n_of_invalid_or_clean_page >= n_of_max_invalid_or_clean_page:
                 n_of_max_invalid_or_clean_page = n_of_invalid_or_clean_page
@@ -405,10 +418,30 @@ class Rejuvenator:
         :return: erase count
         """
 
-        for cur in range(self.n_phy_blocks):
+        for cur in range(self.max_wear_count):
             if self.erase_count_index[cur] > idx:
                 return cur
         return self.n_phy_blocks
+
+    def read_spare_area(self, pb, pp):
+        """
+        DISK API
+        read physical page info from the space area
+        :param pb: physical block address
+        :param pp: physical page address
+        :return logical address: (int,int) or None
+        """
+
+        return (10, 10)
+
+    def write_spare_area(self, pb, pp, log_addr):
+        """
+            DISK API
+            write physical page info from the space area
+            :param log_addr: logical address (lb,lp)
+            :param pb: physical block address
+            :param pp: physical page address
+        """
 
 
 # Press the green button in the gutter to run the script.
