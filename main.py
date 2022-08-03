@@ -431,7 +431,8 @@ class Rejuvenator:
         :param pp: physical page address
         :return logical address: (int,int) or None
         """
-
+        #  it should be a number
+        #  has to translated back to the logical address
         return (10, 10)
 
     def write_spare_area(self, pb, pp, log_addr):
