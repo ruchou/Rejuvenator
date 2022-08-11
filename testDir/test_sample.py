@@ -1,9 +1,8 @@
 import pytest
-
 from main import Rejuvenator
 
 
-def test_f():
+def _test_f():
     r = Rejuvenator()
     assert all([c for c in r.clean]) == True
 
