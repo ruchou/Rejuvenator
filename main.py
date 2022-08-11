@@ -96,8 +96,6 @@ class Rejuvenator:
         :return:
         """
         # check the logical address is hot or cold
-        if self.GCT == 1673:
-            print(lb, lp)
         if (lb, lp) not in self.LRU:
             # cold data
             self._write_2_higher_number_list(d, lb, lp)
