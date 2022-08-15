@@ -71,6 +71,8 @@ class Rejuvenator:
         self.l_clean_counter -= 1
         self.h_clean_counter -= 1
 
+        self.max_wear_count = max_wear_count
+
     def write(self, d, lb, lp):
         """
         write the data d based on the logical address (lb,lp)
@@ -316,7 +318,11 @@ class Rejuvenator:
         """
         idx = self.get_most_clean_efficient_block_idx()
         if self.min_wear() + self.tau <= self.get_erase_count_by_idx(idx):
-            idx = self.erase_count_index[self.min_wear() - 1]
+            if self.min_wear() == 0:
+                idx = 0
+            else:
+                idx = self.erase_count_index[self.min_wear() - 1]
+
             end_idx = self.erase_count_index[self.min_wear()]
 
             while idx < end_idx:
@@ -426,10 +432,10 @@ class Rejuvenator:
         :return: erase count
         """
 
-        for cur in range(self.n_phy_blocks):
+        for cur in range(self.max_wear_count):
             if self.erase_count_index[cur] > idx:
                 return cur
-        return self.n_phy_blocks
+        return self.max_wear_count
 
     def _w(self, d, pb, pg):
         """
